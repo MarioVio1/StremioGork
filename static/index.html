@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Veezie Streaming Addon</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <h1>Veezie Streaming Addon</h1>
+    <p>Inserisci i tuoi siti di streaming e genera il manifest per Stremio.</p>
+
+    <h2>Aggiungi Siti</h2>
+    <div id="sitesList">
+        <div class="site-entry">
+            <input type="text" class="domain" placeholder="URL del sito (es. https://example.com)" required>
+            <select class="types" multiple>
+                <option value="movie" selected>Film</option>
+                <option value="series" selected>Serie</option>
+                <option value="anime">Anime</option>
+                <option value="channel">Live TV</option>
+            </select>
+            <button type="button" class="remove-site">Rimuovi</button>
+        </div>
+    </div>
+    <button type="button" id="addSite">Aggiungi un altro sito</button>
+
+    <h2>Genera Manifest</h2>
+    <button type="button" id="generateManifest" class="button">Genera Manifest</button>
+
+    <h2>Manifest JSON</h2>
+    <pre id="manifest">{{ manifest }}</pre>
+
+    <h2>Installa su Stremio</h2>
+    <p>Copia l'URL o clicca "Installa":</p>
+    <input type="text" id="addonUrl" readonly>
+    <button class="button" onclick="copyUrl()">Copia URL</button>
+    <button class="button" onclick="installAddon()">Installa</button>
+
+    <script src="/static/scripts.js"></script>
+</body>
+</html>
