@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: stremio-addon-veezie
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python src/main.py
+    envVars:
+      - key: PORT
+        value: 8000
