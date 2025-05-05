@@ -7,39 +7,39 @@
       "SC_ForwardProxy": 0,
       "use_mediaflow": 0
     },
-    "CB01": {
+    "CB01_meme": {
+      "url": "https://cb01.meme",
+      "enabled": 1,
+      "CB_PROXY": 1,
+      "CB_ForwardProxy": 0,
+      "use_mediaflow": 0
+    },
+    "CB01_net": {
       "url": "https://cb01net.uno",
       "enabled": 1,
       "CB_PROXY": 1,
       "CB_ForwardProxy": 0,
       "use_mediaflow": 0
     },
-    "CB01Alt": {
-      "url": "https://cb01.meme",
-      "enabled": 1,
-      "CA_PROXY": 1,
-      "CA_ForwardProxy": 0,
-      "use_mediaflow": 0
-    },
-    "Eurostreaming": {
+    "Eurostreaming_my": {
       "url": "https://eurostreaming.my",
       "enabled": 1,
       "ES_PROXY": 1,
       "ES_ForwardProxy": 0,
       "use_mediaflow": 0
     },
-    "EurostreamingAlt": {
+    "Eurostreaming_esq": {
       "url": "https://eurostreaming.esq",
       "enabled": 1,
-      "EA_PROXY": 1,
-      "EA_ForwardProxy": 0,
+      "ES_PROXY": 1,
+      "ES_ForwardProxy": 0,
       "use_mediaflow": 0
     },
     "Filmez": {
       "url": "https://filmez.org",
       "enabled": 1,
-      "FZ_PROXY": 1,
-      "FZ_ForwardProxy": 0,
+      "FM_PROXY": 0,
+      "FM_ForwardProxy": 0,
       "use_mediaflow": 0
     },
     "Altadefinizione": {
@@ -59,78 +59,71 @@
     "Tantifilm": {
       "url": "https://www.tanti.bond",
       "enabled": 1,
-      "TF_PROXY": 1,
+      "TF_PROXY": 0,
       "TF_ForwardProxy": 0,
       "use_mediaflow": 0
     },
-    "Animeworld": {
+    "AnimeWorld": {
       "url": "https://www.animeworld.ac",
       "enabled": 1,
-      "AW_PROXY": 1,
+      "AW_PROXY": 0,
       "AW_ForwardProxy": 0,
       "use_mediaflow": 0
     },
-    "Animeunity": {
+    "AnimeUnity": {
       "url": "https://www.animeunity.so",
       "enabled": 1,
-      "AU_PROXY": 1,
+      "AU_PROXY": 0,
       "AU_ForwardProxy": 0,
       "use_mediaflow": 0
     },
-    "Toonitalia": {
+    "ToonItalia": {
       "url": "https://toonitalia.green",
       "enabled": 1,
-      "TI_PROXY": 1,
+      "TI_PROXY": 0,
       "TI_ForwardProxy": 0,
       "use_mediaflow": 0
     },
-    "Animesaturn": {
+    "AnimeSaturn": {
       "url": "https://www.animesaturn.cx",
       "enabled": 1,
-      "AS_PROXY": 1,
+      "AS_PROXY": 0,
       "AS_ForwardProxy": 0,
       "use_mediaflow": 0
     },
-    "Filmpertutti": {
-      "url": "https://filmpertutti.click",
-      "enabled": 1,
-      "FP_PROXY": 1,
-      "FP_ForwardProxy": 0,
-      "use_mediaflow": 0
-    },
-    "Streamingwatch": {
-      "url": "https://streamingwatch.to",
-      "enabled": 1,
-      "SW_PROXY": 1,
-      "SW_ForwardProxy": 0,
-      "use_mediaflow": 0
-    },
-    "Ddlstream": {
-      "url": "https://ddlstreamitaly.cloud",
-      "enabled": 1,
-      "DS_PROXY": 1,
-      "DS_ForwardProxy": 0,
-      "use_mediaflow": 0
-    },
-    "Lordchannel": {
-      "url": "https://lordchannel.net",
+    "LordChannel": {
+      "url": "https://lordchannel.xyz",
       "enabled": 1,
       "LC_PROXY": 0,
       "LC_ForwardProxy": 0,
       "use_mediaflow": 0
     },
+    "StreamingWatch": {
+      "url": "https://streamingwatch.me",
+      "enabled": 1,
+      "SW_PROXY": 0,
+      "SW_ForwardProxy": 0,
+      "use_mediaflow": 0
+    },
+    "DDLStream": {
+      "url": "https://ddlstreamitaly.best",
+      "enabled": 1,
+      "DDL_PROXY": 0,
+      "DDL_ForwardProxy": 0,
+      "use_mediaflow": 0
+    },
+    "OnlineSerieTV": {
+      "url": "https://onlineserietv.best",
+      "enabled": 1,
+      "OST_PROXY": 0,
+      "OST_ForwardProxy": 0,
+      "use_mediaflow": 0
+    },
     "GuardaHD": {
-      "url": "https://guardahd.boo",
+      "url": "https://guardahd.best",
       "enabled": 1,
       "GHD_PROXY": 1,
       "GHD_ForwardProxy": 0,
-      "use_mediaflow": 0
-    },
-    "Onlineserietv": {
-      "url": "https://onlineserietv.org",
-      "enabled": 1,
-      "OST_PROXY": 1,
-      "OST_ForwardProxy": 0,
       "use_mediaflow": 0
     }
   },
