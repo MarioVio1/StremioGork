@@ -5,28 +5,28 @@
       "enabled": 1,
       "CB_PROXY": 1,
       "CB_ForwardProxy": 0,
-      "use_mediaflow": 1
+      "use_mediaflow": 0
     },
     "AnimeWorld": {
       "url": "https://www.animeworld.ac",
       "enabled": 1,
       "AW_PROXY": 1,
       "AW_ForwardProxy": 0,
-      "use_mediaflow": 1
+      "use_mediaflow": 0
     },
     "AnimeSaturn": {
       "url": "https://animesaturn.cx",
       "enabled": 1,
       "AS_PROXY": 1,
       "AS_ForwardProxy": 0,
-      "use_mediaflow": 1
+      "use_mediaflow": 0
     },
     "AltaDefinizione": {
       "url": "https://altadefinizionegratis.sbs",
       "enabled": 1,
       "AD_PROXY": 1,
       "AD_ForwardProxy": 0,
-      "use_mediaflow": 1
+      "use_mediaflow": 0
     },
     "Guardaserie": {
       "url": "https://guardaserietv.sbs",
@@ -40,7 +40,7 @@
       "enabled": 1,
       "LC_PROXY": 0,
       "LC_ForwardProxy": 0,
-      "use_mediaflow": 1
+      "use_mediaflow": 0
     },
     "StreamingWatch": {
       "url": "https://www.streamingwatch.org",
@@ -61,6 +61,13 @@
       "enabled": 0,
       "TF_PROXY": 0,
       "TF_ForwardProxy": 0,
+      "use_mediaflow": 0
+    },
+    "StayOnline": {
+      "url": "https://stayonline.pro",
+      "enabled": 1,
+      "SO_PROXY": 1,
+      "SO_ForwardProxy": 0,
       "use_mediaflow": 0
     }
   },
