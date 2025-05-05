@@ -43,7 +43,6 @@ def proxy_stream_with_mediaflow(url):
 # Funzione per ottenere metadati (mock, sostituibile con API IMDb/OMDB)
 async def get_imdb_metadata(imdb_id, client):
     try:
-        # Simulazione metadati (sostituibile con API reale)
         title = "Unknown"
         if imdb_id == "tt20215234":
             title = "Conclave [HD] (2024)"
@@ -80,6 +79,34 @@ async def scrape_cb01(url, search_query=None, client=None, use_proxy=False):
             search_response = await client.get(search_url, headers=HEADERS, proxies=proxies if use_proxy else {}, timeout=15, verify=False)
             search_soup = BeautifulSoup(search_response.text, 'html.parser')
             for item in search_soup.find_all('div', class_='film'):
+                title = item.find('h3').text.strip() if item.find('h3') else "Unknown"
+                link = item.find('a', href=True)
+                if link and ("streaming" in link['href'].lower() or link['href'].endswith(('.m3u8', '.mp4'))):
+                    streams.append(link['href'])
+                    titles.append(title)
+        return streams, titles
+    except Exception as e:
+        print(f"Errore scraping {url}: {e}")
+        return [], []
+
+async def scrape_animeworld(url, search_query=None, client=None, use_proxy=False):
+    try:
+        response = await client.get(url, headers=HEADERS, proxies=proxies if use_proxy else {}, timeout=15, verify=False)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        streams = []
+        titles = []
+        for item in soup.find_all('div', class_='anime-card'):
+            title = item.find('h3').text.strip() if item.find('h3') else "Unknown"
+            link = item.find('a', href=True)
+            if link and ("streaming" in link['href'].lower() or link['href'].endswith(('.m3u8', '.mp4'))):
+                streams.append(link['href'])
+                titles.append(title)
+        if search_query:
+            search_url = f"{url}/search?anime={urllib.parse.quote(search_query)}"
+            search_response = await client.get(search_url, headers=HEADERS, proxies=proxies if use_proxy else {}, timeout=15, verify=False)
+            search_soup = BeautifulSoup(search_response.text, 'html.parser')
+            for item in search_soup.find_all('div', class_='anime-card'):
                 title = item.find('h3').text.strip() if item.find('h3') else "Unknown"
                 link = item.find('a', href=True)
                 if link and ("streaming" in link['href'].lower() or link['href'].endswith(('.m3u8', '.mp4'))):
