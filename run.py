@@ -166,12 +166,10 @@ async def homepage():
 def manifest():
     return respond_with(MANIFEST)
 
-# Endpoint per il catalogo
-@app.get("/catalog/{type}/{id}.json")
+# Nuovo endpoint per /catalog
+@app.get("/catalog")
 @limiter.limit("5/second")
-async def catalog(request: Request, type: str, id: str, search: str = None):
-    if type not in MANIFEST["types"]:
-        raise HTTPException(status_code=404)
+async def generic_catalog(request: Request, search: str = None):
     config = load_config()
     all_streams = []
     all_titles = []
@@ -245,14 +243,15 @@ async def catalog(request: Request, type: str, id: str, search: str = None):
     }
     return respond_with(catalog)
 
-# Endpoint per gli stream
-@app.get("/stream/{type}/{id}.json")
+# Endpoint per il catalogo specifico
+@app.get("/catalog/{type}/{id}.json")
 @limiter.limit("5/second")
-async def stream(request: Request, type: str, id: str):
+async def catalog(request: Request, type: str, id: str, search: str = None):
     if type not in MANIFEST["types"]:
         raise HTTPException(status_code=404)
     config = load_config()
-    streams = []
+    all_streams = []
+    all_titles = []
 
     async with AsyncSession(proxies=proxies) as client:
         for site_name, site in config["Siti"].items():
@@ -260,57 +259,53 @@ async def stream(request: Request, type: str, id: str):
                 url = site["url"]
                 use_proxy = site.get(f"{site_name[:2]}_PROXY", 0) == 1
                 use_mediaflow = site.get("use_mediaflow", 0) == 1
-                search_query = id.replace("addon_", "")
-
-                if site_name == "CB01":
-                    site_streams, _ = await scrape_cb01(url, search_query, client, use_proxy)
-                elif site_name in ["AnimeWorld", "AnimeSaturn"]:
-                    site_streams, _ = await scrape_animeworld(url, search_query, client, use_proxy)
-                elif site_name == "LordChannel":
-                    site_streams, _ = await scrape_lordchannel(url, search_query, client, use_proxy)
-                else:
-                    continue
 
                 if use_mediaflow:
-                    streams.extend([
-                        {"url": f"{MFP_URL}/proxy?url={urllib.parse.quote(stream)}", "title": f"{config['General']['Icon']}{site_name}"}
-                        for stream in site_streams
-                    ])
+                    proxied_content = await proxy_with_mediaflow(url, client)
+                    if proxied_content:
+                        soup = BeautifulSoup(proxied_content, 'html.parser')
+                        streams = []
+                        titles = []
+                        for link in soup.find_all('a', href=True):
+                            if link['href'].endswith(('.m3u8', '.mp4')):
+                                proxied_stream = f"{MFP_URL}/proxy?url={urllib.parse.quote(link['href'])}"
+                                streams.append(proxied_stream)
+                                titles.append(link.get('title', 'Unknown'))
+                        if search:
+                            search_url = f"{url}/search?q={urllib.parse.quote(search)}"
+                            proxied_search_content = await proxy_with_mediaflow(search_url, client)
+                            if proxied_search_content:
+                                search_soup = BeautifulSoup(proxied_search_content, 'html.parser')
+                                for link in search_soup.find_all('a', href=True):
+                                    if link['href'].endswith(('.m3u8', '.mp4')):
+                                        proxied_stream = f"{MFP_URL}/proxy?url={urllib.parse.quote(link['href'])}"
+                                        streams.append(proxied_stream)
+                                        titles.append(link.get('title', 'Unknown'))
+                        all_streams.extend(streams)
+                        all_titles.extend(titles)
+                    else:
+                        # Fallback a scraping diretto
+                        if site_name == "CB01":
+                            streams, titles = await scrape_cb01(url, search, client, use_proxy)
+                        elif site_name in ["AnimeWorld", "AnimeSaturn"]:
+                            streams, titles = await scrape_animeworld(url, search, client, use_proxy)
+                        elif site_name == "LordChannel":
+                            streams, titles = await scrape_lordchannel(url, search, client, use_proxy)
+                        else:
+                            continue
+                        all_streams.extend(streams)
+                        all_titles.extend(titles)
                 else:
-                    streams.extend([
-                        {"url": stream, "title": f"{config['General']['Icon']}{site_name}"}
-                        for stream in site_streams
-                    ])
+                    if site_name == "CB01":
+                        streams, titles = await scrape_cb01(url, search, client, use_proxy)
+                    elif site_name in ["AnimeWorld", "AnimeSaturn"]:
+                        streams, titles = await scrape_animeworld(url, search, client, use_proxy)
+                    elif site_name == "LordChannel":
+                        streams, titles = await scrape_lordchannel(url, search, client, use_proxy)
+                    else:
+                        continue
+                    all_streams.extend(streams)
+                    all_titles.extend(titles)
 
-    return respond_with({"streams": streams})
-
-# Endpoint per i metadati
-@app.get("/meta/{type}/{id}.json")
-@limiter.limit("20/second")
-async def meta(request: Request, type: str, id: str):
-    if type not in MANIFEST["types"]:
-        raise HTTPException(status_code=404)
-    config = load_config()
-    title = id.replace("addon_", "")
-    meta = {
-        "meta": {
-            "id": id,
-            "type": type,
-            "name": title,
-            "poster": config["General"]["Icon"],
-            "description": f"Stream per {title}",
-            "genres": ["Streaming"]
-        }
-    }
-    return respond_with(meta)
-
-# Caricamento all'avvio
-@app.on_event("startup")
-async def startup_event():
-    config = load_config()
-    print(f"Caricati {len(config['Siti'])} siti dal config")
-
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", 8080))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    catalog = {
+        "metas":
