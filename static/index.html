@@ -1,42 +1,41 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Veezie Streaming Addon</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <title>Mario's Stremio Addon</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+        h1 { color: #333; }
+        ul { list-style-type: none; padding: 0; }
+        li { margin: 10px 0; }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
 </head>
 <body>
-    <h1>Veezie Streaming Addon</h1>
-    <p>Inserisci i tuoi siti di streaming e genera il manifest per Stremio.</p>
-
-    <h2>Aggiungi Siti</h2>
-    <div id="sitesList">
-        <div class="site-entry">
-            <input type="text" class="domain" placeholder="URL del sito (es. https://example.com)" required>
-            <select class="types" multiple>
-                <option value="movie" selected>Film</option>
-                <option value="series" selected>Serie</option>
-                <option value="anime">Anime</option>
-                <option value="channel">Live TV</option>
-            </select>
-            <button type="button" class="remove-site">Rimuovi</button>
-        </div>
-    </div>
-    <button type="button" id="addSite">Aggiungi un altro sito</button>
-
-    <h2>Genera Manifest</h2>
-    <button type="button" id="generateManifest" class="button">Genera Manifest</button>
-
-    <h2>Manifest JSON</h2>
-    <pre id="manifest">{{ manifest }}</pre>
-
-    <h2>Installa su Stremio</h2>
-    <p>Copia l'URL o clicca "Installa":</p>
-    <input type="text" id="addonUrl" readonly>
-    <button class="button" onclick="copyUrl()">Copia URL</button>
-    <button class="button" onclick="installAddon()">Installa</button>
-
-    <script src="/static/scripts.js"></script>
+    <h1>Ricerca Film/Serie/Anime</h1>
+    <input type="text" id="search" placeholder="Inserisci il nome">
+    <button onclick="searchContent()">Cerca</button>
+    <ul id="sites-list"></ul>
+    <script>
+        function searchContent() {
+            const query = document.getElementById('search').value;
+            fetch(`/catalog?search=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById('sites-list');
+                    if (data.metas && data.metas.length > 0) {
+                        list.innerHTML = data.metas.map(meta => 
+                            `<li><a href="${meta.streams[0]?.url}" target="_blank">${meta.name} (${meta.type})</a></li>`
+                        ).join('');
+                    } else {
+                        list.innerHTML = '<li>Nessun stream trovato.</li>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Errore:', error);
+                    list.innerHTML = '<li>Errore nella ricerca.</li>';
+                });
+        }
+    </script>
 </body>
 </html>
