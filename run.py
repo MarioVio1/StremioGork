@@ -134,8 +134,6 @@ async def scrape_lordchannel(url, search_query=None, client=None, use_proxy=Fals
         print(f"Errore scraping {url}: {e}")
         return [], []
 
-# Altri siti (es. Guardaserie, StreamingWatch) seguono una logica simile
-
 # Manifest
 MANIFEST = {
     "id": "com.mariovio01.stremio",
@@ -171,7 +169,7 @@ def manifest():
 # Endpoint per il catalogo
 @app.get("/catalog/{type}/{id}.json")
 @limiter.limit("5/second")
-async def catalog(type: str, id: str, search: str = None):
+async def catalog(request: Request, type: str, id: str, search: str = None):
     if type not in MANIFEST["types"]:
         raise HTTPException(status_code=404)
     config = load_config()
@@ -250,7 +248,7 @@ async def catalog(type: str, id: str, search: str = None):
 # Endpoint per gli stream
 @app.get("/stream/{type}/{id}.json")
 @limiter.limit("5/second")
-async def stream(type: str, id: str):
+async def stream(request: Request, type: str, id: str):
     if type not in MANIFEST["types"]:
         raise HTTPException(status_code=404)
     config = load_config()
@@ -289,7 +287,7 @@ async def stream(type: str, id: str):
 # Endpoint per i metadati
 @app.get("/meta/{type}/{id}.json")
 @limiter.limit("20/second")
-async def meta(type: str, id: str):
+async def meta(request: Request, type: str, id: str):
     if type not in MANIFEST["types"]:
         raise HTTPException(status_code=404)
     config = load_config()
