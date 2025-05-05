@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python /opt/render/project/run.py
+    startCommand: python run.py
     envVars:
       - key: PORT
         value: 8000
