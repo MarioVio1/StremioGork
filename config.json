@@ -1,0 +1,32 @@
+{
+  "domains": [
+    {"domain": "streamingcommunity.spa", "enabled": 1, "proxy": "webshare", "cookies": "", "use_mediaflow": false},
+    {"domain": "cb01.meme", "enabled": 1, "proxy": "mediaflow", "cookies": "", "use_mediaflow": true},
+    {"domain": "eurostreaming.my", "enabled": 1, "proxy": "none", "cookies": "", "use_mediaflow": false},
+    {"domain": "cb01net.uno", "enabled": 1, "proxy": "webshare", "cookies": "", "use_mediaflow": false},
+    {"domain": "eurostreaming.esq", "enabled": 1, "proxy": "mediaflow", "cookies": "", "use_mediaflow": true},
+    {"domain": "filmez.org", "enabled": 1, "proxy": "none", "cookies": "", "use_mediaflow": false},
+    {"domain": "altadefinizionegratis.sbs", "enabled": 1, "proxy": "webshare", "cookies": "", "use_mediaflow": false},
+    {"domain": "guardaserietv.top", "enabled": 1, "proxy": "mediaflow", "cookies": "", "use_mediaflow": true},
+    {"domain": "tanti.bond", "enabled": 1, "proxy": "none", "cookies": "", "use_mediaflow": false},
+    {"domain": "animeworld.ac", "enabled": 1, "proxy": "webshare", "cookies": "", "use_mediaflow": false},
+    {"domain": "animeunity.so", "enabled": 1, "proxy": "mediaflow", "cookies": "", "use_mediaflow": true},
+    {"domain": "toonitalia.green", "enabled": 1, "proxy": "none", "cookies": "", "use_mediaflow": false},
+    {"domain": "animesaturn.cx", "enabled": 1, "proxy": "webshare", "cookies": "", "use_mediaflow": false},
+    {"domain": "ilcorsaronero.link", "enabled": 1, "proxy": "mediaflow", "cookies": "", "use_mediaflow": true},
+    {"domain": "1337x.to", "enabled": 1, "proxy": "none", "cookies": "", "use_mediaflow": false},
+    {"domain": "rargb.to", "enabled": 1, "proxy": "webshare", "cookies": "", "use_mediaflow": false}
+  ],
+  "load_env": 0,
+  "HOST": "0.0.0.0",
+  "PORT": 7860,
+  "Icon": "https://via.placeholder.com/150",
+  "Public_Instance": 1,
+  "Remote_Instance": 1,
+  "Global_Proxy": 0,
+  "Proxy_Settings": {
+    "webshare": "http://pzytldso-rotate:oybm1jw2kflp@p.webshare.io:80/",
+    "mediaflow": "https://mfp-40ii.onrender.com/",
+    "mediaflow_password": "Sally"
+  }
+}
