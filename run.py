@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import os
 import requests
@@ -17,6 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+app.state.streams = []
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
@@ -40,94 +42,198 @@ HEADERS = {
     "Referer": "https://www.google.com/"
 }
 
-# Chiave TMDB
-TMDB_API_KEY = "9f6dbcbddf9565f6a0f004fca81f83ee"
+# Funzione per proxyare stream con MediaFlow (solo per manifest)
+def proxy_stream_with_mediaflow(url):
+    return f"{MFP_URL}/proxy?url={urllib.parse.quote(url)}&api_password={MFP_PASSWORD}"
 
-# Funzione per proxyare stream con MediaFlow
-def proxy_stream_with_mediaflow(url, host=None):
-    encoded_url = urllib.parse.quote(url)
-    if host:
-        encoded_host = urllib.parse.quote(host)
-        return f"{MFP_URL}/extractor/video?api_password={MFP_PASSWORD}&d={encoded_url}&host={encoded_host}&redirect_stream=false"
-    return f"{MFP_URL}/proxy?url={encoded_url}&api_password={MFP_PASSWORD}"
-
-# Funzione per ottenere metadati TMDB
-async def get_tmdb_metadata(id, client, type="movie"):
+# Funzione per ottenere metadati (mock, sostituibile con API IMDb/OMDB)
+async def get_imdb_metadata(imdb_id, client):
     try:
-        if id.startswith("tmdb:"):
-            tmdb_id = id.replace("tmdb:", "")
-            logger.info(f"Risoluzione TMDB ID diretto: {tmdb_id}")
-        elif id.startswith("tt"):
-            url = f"https://api.themoviedb.org/3/find/{id}?api_key={TMDB_API_KEY}&external_source=imdb_id"
-            logger.info(f"Richiesta TMDB per IMDb ID: {url}")
-            response = await client.get(url, headers=HEADERS, timeout=10, proxies=proxies)
-            response.raise_for_status()
-            data = response.json()
-            if data["movie_results"]:
-                tmdb_id = data["movie_results"][0]["id"]
-                logger.info(f"Trovato TMDB ID per film: {tmdb_id}")
-            elif data["tv_results"]:
-                tmdb_id = data["tv_results"][0]["id"]
-                logger.info(f"Trovato TMDB ID per serie: {tmdb_id}")
-            else:
-                logger.error(f"Nessun risultato TMDB per {id}")
-                return {
-                    "title": "Unknown",
-                    "poster": config["General"]["Icon"],
-                    "description": "Contenuto non trovato",
-                    "genres": ["Streaming"]
-                }
-        else:
-            tmdb_id = id
-            logger.info(f"Usato ID diretto: {tmdb_id}")
-
-        url = f"https://api.themoviedb.org/3/{'movie' if type == 'movie' else 'tv'}/{tmdb_id}?api_key={TMDB_API_KEY}&language=it-IT"
-        logger.info(f"Richiesta metadati TMDB: {url}")
-        response = await client.get(url, headers=HEADERS, timeout=10, proxies=proxies)
-        response.raise_for_status()
-        data = response.json()
-
-        if not data.get("id"):
-            logger.error(f"Risposta TMDB vuota o invalida per {tmdb_id}")
-            return {
-                "title": "Unknown",
-                "poster": config["General"]["Icon"],
-                "description": "Contenuto non trovato",
-                "genres": ["Streaming"]
-            }
-
-        title = data.get("title", data.get("name", "Unknown"))
-        poster = f"https://image.tmdb.org/t/p/w500{data['poster_path']}" if data.get("poster_path") else config["General"]["Icon"]
-        description = data.get("overview", f"Stream per {title}")
-        genres = [genre["name"] for genre in data.get("genres", [])]
-
-        logger.info(f"Metadati trovati per {id}: {title}")
+        title = "Unknown"
+        if imdb_id == "tt8999762":
+            title = "Mufasa: The Lion King (2024)"
+        elif imdb_id == "tt8714904":
+            title = "Narcos: Mexico"
+        elif imdb_id == "tt20215234":
+            title = "Conclave [HD] (2024)"
+        elif imdb_id == "tt13622970":
+            title = "Moana 2 (2024)"  # Oceania 2
+        elif imdb_id == "tmdb:1241982":
+            title = "Unknown TMDB Movie"
         return {
             "title": title,
-            "poster": poster,
-            "description": description,
-            "genres": genres
-        }
-    except Exception as e:
-        logger.error(f"Errore TMDB per {id}: {str(e)}")
-        return {
-            "title": "Unknown",
             "poster": config["General"]["Icon"],
-            "description": f"Errore nel recupero dei metadati: {str(e)}",
+            "description": f"Stream per {title}",
             "genres": ["Streaming"]
         }
+    except Exception as e:
+        logger.error(f"Errore ottenendo metadati per {imdb_id}: {e}")
+        return None
 
-# ... (le funzioni di scraping rimangono invariate rispetto alla versione precedente)
+# Funzioni di scraping
+async def scrape_cb01(url, search_query=None, client=None, use_proxy=False):
+    try:
+        response = await client.get(url, headers=HEADERS, proxies=proxies if use_proxy else {}, timeout=15, verify=False)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        streams = []
+        titles = []
+        for item in soup.find_all('div', class_='film'):
+            title = item.find('h3').text.strip() if item.find('h3') else "Unknown"
+            link = item.find('a', href=True)
+            if link and ("streaming" in link['href'].lower() or link['href'].endswith(('.m3u8', '.mp4')) or "maxstream" in link['href'].lower() or "mixdrop" in link['href'].lower()):
+                streams.append(link['href'])
+                titles.append(title)
+        if search_query:
+            search_url = f"{url}/search?query={urllib.parse.quote(search_query)}"
+            logger.info(f"Ricerca CB01: {search_url}")
+            search_response = await client.get(search_url, headers=HEADERS, proxies=proxies if use_proxy else {}, timeout=15, verify=False)
+            search_soup = BeautifulSoup(search_response.text, 'html.parser')
+            for item in search_soup.find_all('div', class_='film'):
+                title = item.find('h3').text.strip() if item.find('h3') else "Unknown"
+                link = item.find('a', href=True)
+                if link and ("streaming" in link['href'].lower() or link['href'].endswith(('.m3u8', '.mp4')) or "maxstream" in link['href'].lower() or "mixdrop" in link['href'].lower()):
+                    streams.append(link['href'])
+                    titles.append(title)
+        logger.info(f"CB01 trovati {len(streams)} stream per {search_query}")
+        return streams, titles
+    except Exception as e:
+        logger.error(f"Errore scraping CB01 {url}: {e}")
+        return [], []
+
+async def scrape_animeworld(url, search_query=None, client=None, use_proxy=False):
+    try:
+        response = await client.get(url, headers=HEADERS, proxies=proxies if use_proxy else {}, timeout=15, verify=False)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        streams = []
+        titles = []
+        for item in soup.find_all('div', class_='anime-card'):
+            title = item.find('h3').text.strip() if item.find('h3') else "Unknown"
+            link = item.find('a', href=True)
+            if link and ("streaming" in link['href'].lower() or link['href'].endswith(('.m3u8', '.mp4'))):
+                streams.append(link['href'])
+                titles.append(title)
+        if search_query:
+            search_url = f"{url}/search?anime={urllib.parse.quote(search_query)}"
+            logger.info(f"Ricerca AnimeWorld: {search_url}")
+            search_response = await client.get(search_url, headers=HEADERS, proxies=proxies if use_proxy else {}, timeout=15, verify=False)
+            search_soup = BeautifulSoup(search_response.text, 'html.parser')
+            for item in search_soup.find_all('div', class_='anime-card'):
+                title = item.find('h3').text.strip() if item.find('h3') else "Unknown"
+                link = item.find('a', href=True)
+                if link and ("streaming" in link['href'].lower() or link['href'].endswith(('.m3u8', '.mp4'))):
+                    streams.append(link['href'])
+                    titles.append(title)
+        logger.info(f"AnimeWorld trovati {len(streams)} stream per {search_query}")
+        return streams, titles
+    except Exception as e:
+        logger.error(f"Errore scraping AnimeWorld {url}: {e}")
+        return [], []
+
+async def scrape_lordchannel(url, search_query=None, client=None, use_proxy=False):
+    try:
+        response = await client.get(url, headers=HEADERS, proxies=proxies if use_proxy else {}, timeout=15, verify=False)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        streams = []
+        titles = []
+        for item in soup.find_all('article'):
+            title = item.find('h2').text.strip() if item.find('h2') else "Unknown"
+            link = item.find('a', href=True)
+            if link and ("streaming" in link['href'].lower() or link['href'].endswith(('.m3u8', '.mp4')) or "maxstream" in link['href'].lower() or "mixdrop" in link['href'].lower()):
+                streams.append(link['href'])
+                titles.append(title)
+        if search_query:
+            search_url = f"{url}/search?s={urllib.parse.quote(search_query)}"
+            logger.info(f"Ricerca LordChannel: {search_url}")
+            search_response = await client.get(search_url, headers=HEADERS, proxies=proxies if use_proxy else {}, timeout=15, verify=False)
+            search_soup = BeautifulSoup(search_response.text, 'html.parser')
+            for item in search_soup.find_all('article'):
+                title = item.find('h2').text.strip() if item.find('h2') else "Unknown"
+                link = item.find('a', href=True)
+                if link and ("streaming" in link['href'].lower() or link['href'].endswith(('.m3u8', '.mp4')) or "maxstream" in link['href'].lower() or "mixdrop" in link['href'].lower()):
+                    streams.append(link['href'])
+                    titles.append(title)
+        logger.info(f"LordChannel trovati {len(streams)} stream per {search_query}")
+        return streams, titles
+    except Exception as e:
+        logger.error(f"Errore scraping LordChannel {url}: {e}")
+        return [], []
+
+async def scrape_stayonline(url, search_query=None, client=None, use_proxy=False):
+    try:
+        response = await client.get(url, headers=HEADERS, proxies=proxies if use_proxy else {}, timeout=15, verify=False)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        streams = []
+        titles = []
+        for item in soup.find_all('div', class_='movie'):
+            title = item.find('h1').text.strip() if item.find('h1') else "Unknown"
+            link = item.find('a', href=True)
+            if link and (link['href'].startswith('https://stayonline.pro/e/') or "maxstream" in link['href'].lower() or "mixdrop" in link['href'].lower()):
+                streams.append(link['href'])
+                titles.append(title)
+        if search_query:
+            search_url = f"https://stayonline.pro/search?q={urllib.parse.quote(search_query)}"
+            logger.info(f"Ricerca StayOnline: {search_url}")
+            search_response = await client.get(search_url, headers=HEADERS, proxies=proxies if use_proxy else {}, timeout=15, verify=False)
+            search_soup = BeautifulSoup(search_response.text, 'html.parser')
+            for item in search_soup.find_all('div', class_='movie'):
+                title = item.find('h1').text.strip() if item.find('h1') else "Unknown"
+                link = item.find('a', href=True)
+                if link and (link['href'].startswith('https://stayonline.pro/e/') or "maxstream" in link['href'].lower() or "mixdrop" in link['href'].lower()):
+                    streams.append(link['href'])
+                    titles.append(title)
+        logger.info(f"StayOnline trovati {len(streams)} stream per {search_query}")
+        return streams, titles
+    except Exception as e:
+        logger.error(f"Errore scraping StayOnline {url}: {e}")
+        return [], []
+
+async def scrape_guardahd(url, search_query=None, client=None, use_proxy=False):
+    try:
+        response = await client.get(url, headers=HEADERS, proxies=proxies if use_proxy else {}, timeout=15, verify=False)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        streams = []
+        titles = []
+        for item in soup.find_all('div', class_='video-item'):
+            title = item.find('h3').text.strip() if item.find('h3') else "Unknown"
+            link = item.find('a', href=True)
+            if link and ("streaming" in link['href'].lower() or link['href'].endswith(('.m3u8', '.mp4')) or "maxstream" in link['href'].lower() or "mixdrop" in link['href'].lower()):
+                streams.append(link['href'])
+                titles.append(title)
+        if search_query:
+            search_url = f"{url}/search?q={urllib.parse.quote(search_query)}"
+            logger.info(f"Ricerca GuardaHD: {search_url}")
+            search_response = await client.get(search_url, headers=HEADERS, proxies=proxies if use_proxy else {}, timeout=15, verify=False)
+            search_soup = BeautifulSoup(search_response.text, 'html.parser')
+            for item in search_soup.find_all('div', class_='video-item'):
+                title = item.find('h3').text.strip() if item.find('h3') else "Unknown"
+                link = item.find('a', href=True)
+                if link and ("streaming" in link['href'].lower() or link['href'].endswith(('.m3u8', '.mp4')) or "maxstream" in link['href'].lower() or "mixdrop" in link['href'].lower()):
+                    streams.append(link['href'])
+                    titles.append(title)
+        logger.info(f"GuardaHD trovati {len(streams)} stream per {search_query}")
+        return streams, titles
+    except Exception as e:
+        logger.error(f"Errore scraping GuardaHD {url}: {e}")
+        return [], []
 
 # Manifest
 MANIFEST = {
     "id": "com.mariovio01.stremio",
     "version": "1.0.0",
     "name": "Mario's Stremio Addon",
-    "description": "Addon per streaming HTTPS di film, serie e anime in italiano",
-    "resources": ["stream", "meta"],
-    "types": ["movie", "series"],
-    "catalogs": [],
+    "description": "Addon con siti predefiniti per film, serie e anime",
+    "resources": ["catalog", "stream", "meta"],
+    "types": ["movie", "series", "anime"],
+    "catalogs": [
+        {"type": "movie", "id": "movies"},
+        {"type": "series", "id": "series"},
+        {"type": "anime", "id": "anime"}
+    ],
     "logo": "https://creazilla-store.fra1.digitaloceanspaces.com/emojis/49647/pizza-emoji-clipart-md.png"
 }
 
@@ -143,159 +249,187 @@ async def homepage():
     return FileResponse("static/index.html")
 
 # Endpoint per il manifest
-@app.get("/{config:path}/manifest.json")
-def addon_manifest(config: str):
-    return respond_with(MANIFEST)
-
 @app.get("/manifest.json")
 def manifest():
     return respond_with(MANIFEST)
 
-# Endpoint per gli stream (invariato)
-@app.get("/{config:path}/stream/{type}/{id}.json")
+# Endpoint per il catalogo generico
+@app.get("/catalog")
 @limiter.limit("5/second")
-async def stream(request: Request, config: str, type: str, id: str):
-    if type not in MANIFEST["types"]:
-        raise HTTPException(status_code=404)
-    config_data = load_config()
-    streams = []
-
-    provider_map = {
-        "SC": "StreamingCommunity",
-        "CB1": "CB01_meme",
-        "CB2": "CB01_net",
-        "ES1": "Eurostreaming_my",
-        "ES2": "Eurostreaming_esq",
-        "FM": "Filmez",
-        "AD": "Altadefinizione",
-        "GS": "Guardaserie",
-        "TF": "Tantifilm",
-        "AW": "AnimeWorld",
-        "AU": "AnimeUnity",
-        "TI": "ToonItalia",
-        "AS": "AnimeSaturn",
-        "LC": "LordChannel",
-        "SW": "StreamingWatch",
-        "DDL": "DDLStream",
-        "OST": "OnlineSerieTV",
-        "GHD": "GuardaHD"
-    }
-    provider_maps = {name: "0" for name in provider_map.values()}
-    config_providers = config.split("|") if "|" in config else config.split("%7C")
-    for provider in config_providers:
-        if provider in provider_map:
-            provider_maps[provider_map[provider]] = "1"
-
-    MFP = "0"
-    if "MFP[" in config:
-        mfp_data = config.split("MFP[")[1].split(")")[0]
-        MFP_URL, MFP_PASSWORD = mfp_data.split(",")
-        MFP_PASSWORD = MFP_PASSWORD[:-2]
-        MFP = "1"
+async def generic_catalog(request: Request, search: str = None):
+    config = load_config()
+    all_streams = []
+    all_titles = []
 
     async with AsyncSession(proxies=proxies) as client:
-        metadata = await get_tmdb_metadata(id, client, type)
-        search_query = metadata["title"] if metadata["title"] != "Unknown" else id.replace("tmdb:", "").replace("tt", "")
-
-        logger.info(f"Ricerca stream per {type}/{id} con query: {search_query}")
-
-        for site_name, site in config_data["Siti"].items():
-            if site["enabled"] and provider_maps.get(site_name, "0") == "1":
+        for site_name, site in config["Siti"].items():
+            if site["enabled"]:
                 url = site["url"]
                 use_proxy = site.get(f"{site_name[:2]}_PROXY", 0) == 1
-                logger.info(f"Ricerca stream su {site_name} per {search_query}")
 
-                site_streams = []
-                if site_name == "StreamingCommunity":
-                    site_streams = await scrape_streamingcommunity(url, search_query, client, use_proxy)
-                elif site_name in ["CB01_meme", "CB01_net"]:
-                    site_streams = await scrape_cb01(url, search_query, client, use_proxy)
-                elif site_name in ["Eurostreaming_my", "Eurostreaming_esq"]:
-                    site_streams = await scrape_eurostreaming(url, search_query, client, use_proxy)
-                elif site_name == "Filmez":
-                    site_streams = await scrape_filmez(url, search_query, client, use_proxy)
-                elif site_name == "Altadefinizione":
-                    site_streams = await scrape_altadefinizione(url, search_query, client, use_proxy)
-                elif site_name == "Guardaserie":
-                    site_streams = await scrape_guardaserie(url, search_query, client, use_proxy)
-                elif site_name == "Tantifilm":
-                    site_streams = await scrape_tantifilm(url, search_query, client, use_proxy)
-                elif site_name == "AnimeWorld":
-                    site_streams = await scrape_animeworld(url, search_query, client, use_proxy)
-                elif site_name == "AnimeUnity":
-                    site_streams = await scrape_animeunity(url, search_query, client, use_proxy)
-                elif site_name == "ToonItalia":
-                    site_streams = await scrape_toonitalia(url, search_query, client, use_proxy)
-                elif site_name == "AnimeSaturn":
-                    site_streams = await scrape_animesaturn(url, search_query, client, use_proxy)
+                if site_name == "CB01":
+                    streams, titles = await scrape_cb01(url, search, client, use_proxy)
+                elif site_name in ["AnimeWorld", "AnimeSaturn"]:
+                    streams, titles = await scrape_animeworld(url, search, client, use_proxy)
                 elif site_name == "LordChannel":
-                    site_streams = await scrape_lordchannel(url, search_query, client, use_proxy)
-                elif site_name == "StreamingWatch":
-                    site_streams = await scrape_streamingwatch(url, search_query, client, use_proxy)
-                elif site_name == "DDLStream":
-                    site_streams = await scrape_ddlstream(url, search_query, client, use_proxy)
-                elif site_name == "OnlineSerieTV":
-                    site_streams = await scrape_onlineserietv(url, search_query, client, use_proxy)
+                    streams, titles = await scrape_lordchannel(url, search, client, use_proxy)
+                elif site_name == "StayOnline":
+                    streams, titles = await scrape_stayonline(url, search, client, use_proxy)
                 elif site_name == "GuardaHD":
-                    site_streams = await scrape_guardahd(url, search_query, client, use_proxy)
+                    streams, titles = await scrape_guardahd(url, search, client, use_proxy)
+                else:
+                    continue
 
-                for stream in site_streams:
-                    behavior_hints = {}
-                    if "d000d.com" in stream:
-                        behavior_hints = {
-                            "notWebReady": True,
-                            "proxyHeaders": {"request": {"Referer": "https://d000d.com/"}}
-                        }
-                    elif "mixdrop" in stream and MFP == "1":
-                        stream = proxy_stream_with_mediaflow(stream, "Mixdrop")
-                    elif "maxstream" in stream:
-                        stream = proxy_stream_with_mediaflow(stream)
+                all_streams.extend(streams)
+                all_titles.extend(titles)
 
-                    streams.append({
-                        "title": f"{config['General']['Icon']}{site_name}",
-                        "url": stream,
-                        "behaviorHints": behavior_hints if behavior_hints else None
-                    })
-
-                if site_streams:
-                    logger.info(f"Trovati {len(site_streams)} stream su {site_name} per {search_query}")
-
-    if not streams:
-        raise HTTPException(status_code=404)
-    logger.info(f"Stream {type}/{id}: {len(streams)} stream trovati")
-    return respond_with({"streams": streams})
-
-# Endpoint per i metadati (aggiornato)
-@app.get("/{config:path}/meta/{type}/{id}.json")
-@limiter.limit("20/second")
-async def meta(request: Request, config: str, type: str, id: str):
-    if type not in MANIFEST["types"]:
-        logger.error(f"Tipo non supportato: {type}")
-        raise HTTPException(status_code=404, detail=f"Tipo {type} non supportato")
-    
-    async with AsyncSession(proxies=proxies) as client:
-        try:
-            metadata = await get_tmdb_metadata(id, client, type)
-            if metadata["title"] == "Unknown":
-                logger.warning(f"Metadati non trovati per {type}/{id}, usato fallback")
-            
-            meta_response = {
-                "meta": {
-                    "id": id,
-                    "type": type,
-                    "name": metadata["title"],
-                    "poster": metadata["poster"],
-                    "description": metadata["description"],
-                    "genres": metadata["genres"]
-                }
+    catalog = {
+        "metas": [
+            {
+                "id": f"addon_{i}",
+                "type": "movie" if "film" in title.lower() else "series" if "serie" in title.lower() else "anime",
+                "name": title,
+                "poster": config["General"]["Icon"],
+                "streams": [{"url": proxy_stream_with_mediaflow(stream)}]
             }
-            logger.info(f"Metadati restituiti per {type}/{id}: {metadata['title']}")
-            return respond_with(meta_response)
-        except Exception as e:
-            logger.error(f"Errore nell'elaborazione dei metadati per {type}/{id}: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Errore server: {str(e)}")
+            for i, (stream, title) in enumerate(zip(all_streams, all_titles))
+            if stream and title
+        ]
+    }
+    logger.info(f"Catalogo generico: {len(catalog['metas'])} elementi trovati per ricerca '{search}'")
+    return respond_with(catalog)
 
-# Gestore lifespan
+# Endpoint per il catalogo specifico
+@app.get("/catalog/{type}/{id}.json")
+@limiter.limit("5/second")
+async def catalog(request: Request, type: str, id: str, search: str = None):
+    if type not in MANIFEST["types"]:
+        raise HTTPException(status_code=404)
+    config = load_config()
+    all_streams = []
+    all_titles = []
+
+    async with AsyncSession(proxies=proxies) as client:
+        for site_name, site in config["Siti"].items():
+            if site["enabled"]:
+                url = site["url"]
+                use_proxy = site.get(f"{site_name[:2]}_PROXY", 0) == 1
+
+                if site_name == "CB01":
+                    streams, titles = await scrape_cb01(url, search, client, use_proxy)
+                elif site_name in ["AnimeWorld", "AnimeSaturn"]:
+                    streams, titles = await scrape_animeworld(url, search, client, use_proxy)
+                elif site_name == "LordChannel":
+                    streams, titles = await scrape_lordchannel(url, search, client, use_proxy)
+                elif site_name == "StayOnline":
+                    streams, titles = await scrape_stayonline(url, search, client, use_proxy)
+                elif site_name == "GuardaHD":
+                    streams, titles = await scrape_guardahd(url, search, client, use_proxy)
+                else:
+                    continue
+
+                all_streams.extend(streams)
+                all_titles.extend(titles)
+
+    catalog = {
+        "metas": [
+            {
+                "id": f"addon_{i}",
+                "type": "movie" if "film" in title.lower() else "series" if "serie" in title.lower() else "anime",
+                "name": title,
+                "poster": config["General"]["Icon"],
+                "streams": [{"url": proxy_stream_with_mediaflow(stream)}]
+            }
+            for i, (stream, title) in enumerate(zip(all_streams, all_titles))
+            if stream and title
+        ]
+    }
+    logger.info(f"Catalogo specifico {type}/{id}: {len(catalog['metas'])} elementi trovati per ricerca '{search}'")
+    return respond_with(catalog)
+
+# Endpoint per gli stream
+@app.get("/stream/{type}/{id}.json")
+@limiter.limit("5/second")
+async def stream(request: Request, type: str, id: str):
+    if type not in MANIFEST["types"]:
+        raise HTTPException(status_code=404)
+    config = load_config()
+    streams = []
+
+    # Gestione episodi per serie (es. tt8714904:3:7)
+    search_query = id.replace("addon_", "")
+    season = None
+    episode = None
+    if ":" in search_query and type == "series":
+        imdb_id, season, episode = search_query.split(":")
+        search_query = f"{imdb_id}"
+    else:
+        imdb_id = search_query.replace("tt", "").replace("tmdb:", "")
+
+    async with AsyncSession(proxies=proxies) as client:
+        # Ottieni il titolo dal metadato per migliorare la ricerca
+        metadata = await get_imdb_metadata(imdb_id, client)
+        title_query = metadata["title"] if metadata else search_query
+
+        # Formatta la query per serie
+        if season and episode:
+            title_query = f"{title_query} S{season.zfill(2)}E{episode.zfill(2)}"
+        elif type == "series":
+            title_query = f"{title_query} season {season}" if season else title_query
+
+        logger.info(f"Ricerca stream su tutti i siti per {title_query}")
+
+        for site_name, site in config["Siti"].items():
+            if site["enabled"]:
+                url = site["url"]
+                use_proxy = site.get(f"{site_name[:2]}_PROXY", 0) == 1
+
+                if site_name == "CB01":
+                    site_streams, _ = await scrape_cb01(url, title_query, client, use_proxy)
+                elif site_name in ["AnimeWorld", "AnimeSaturn"]:
+                    site_streams, _ = await scrape_animeworld(url, title_query, client, use_proxy)
+                elif site_name == "LordChannel":
+                    site_streams, _ = await scrape_lordchannel(url, title_query, client, use_proxy)
+                elif site_name == "StayOnline":
+                    site_streams, _ = await scrape_stayonline(url, title_query, client, use_proxy)
+                elif site_name == "GuardaHD":
+                    site_streams, _ = await scrape_guardahd(url, title_query, client, use_proxy)
+                else:
+                    continue
+
+                streams.extend([
+                    {"url": proxy_stream_with_mediaflow(stream), "title": f"{config['General']['Icon']}{site_name}"}
+                    for stream in site_streams
+                ])
+
+    response = {"streams": streams}
+    logger.info(f"Stream {type}/{id}: {len(streams)} stream trovati")
+    return respond_with(response)
+
+# Endpoint per i metadati
+@app.get("/meta/{type}/{id}.json")
+@limiter.limit("20/second")
+async def meta(request: Request, type: str, id: str):
+    if type not in MANIFEST["types"]:
+        raise HTTPException(status_code=404)
+    async with AsyncSession(proxies=proxies) as client:
+        metadata = await get_imdb_metadata(id, client)
+        if not metadata:
+            raise HTTPException(status_code=404, detail="Metadati non trovati")
+        meta = {
+            "meta": {
+                "id": id,
+                "type": type,
+                "name": metadata["title"],
+                "poster": metadata["poster"],
+                "description": metadata["description"],
+                "genres": metadata["genres"]
+            }
+        }
+        logger.info(f"Metadati {type}/{id}: {metadata['title']}")
+        return respond_with(meta)
+
+# Gestore di lifespan per startup
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     config = load_config()
