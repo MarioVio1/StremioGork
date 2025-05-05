@@ -1,29 +1,79 @@
 {
-  "domains": [
-    {"domain": "https://streamingcommunity.spa", "enabled": 0, "proxy_for_manifest": true, "cookies": "", "use_webshare": false},
-    {"domain": "https://cb01.meme", "enabled": 1, "proxy_for_manifest": true, "cookies": "", "use_webshare": true},
-    {"domain": "https://eurostreaming.my", "enabled": 1, "proxy_for_manifest": false, "cookies": "", "use_webshare": true},
-    {"domain": "https://cb01net.uno", "enabled": 1, "proxy_for_manifest": true, "cookies": "", "use_webshare": true},
-    {"domain": "https://eurostreaming.esq", "enabled": 1, "proxy_for_manifest": false, "cookies": "", "use_webshare": false},
-    {"domain": "https://filmez.org", "enabled": 1, "proxy_for_manifest": false, "cookies": "", "use_webshare": true},
-    {"domain": "https://altadefinizionegratis.sbs", "enabled": 1, "proxy_for_manifest": true, "cookies": "", "use_webshare": true},
-    {"domain": "https://guardaserietv.top", "enabled": 1, "proxy_for_manifest": false, "cookies": "", "use_webshare": false},
-    {"domain": "https://tanti.bond", "enabled": 0, "proxy_for_manifest": false, "cookies": "", "use_webshare": false},
-    {"domain": "https://animeworld.ac", "enabled": 1, "proxy_for_manifest": true, "cookies": "", "use_webshare": true},
-    {"domain": "https://animeunity.so", "enabled": 1, "proxy_for_manifest": false, "cookies": "", "use_webshare": false},
-    {"domain": "https://toonitalia.green", "enabled": 1, "proxy_for_manifest": false, "cookies": "", "use_webshare": true},
-    {"domain": "https://animesaturn.cx", "enabled": 1, "proxy_for_manifest": true, "cookies": "", "use_webshare": true},
-    {"domain": "https://ilcorsaronero.link", "enabled": 0, "proxy_for_manifest": false, "cookies": "", "use_webshare": false},
-    {"domain": "https://1337x.to", "enabled": 0, "proxy_for_manifest": false, "cookies": "", "use_webshare": false},
-    {"domain": "https://rargb.to", "enabled": 0, "proxy_for_manifest": true, "cookies": "", "use_webshare": false}
-  ],
-  "load_env": 0,
-  "HOST": "0.0.0.0",
-  "PORT": 8080,
-  "Icon": "https://via.placeholder.com/150",
-  "Public_Instance": 0,
-  "Remote_Instance": 1,
-  "Global_Proxy": 0,
+  "Siti": {
+    "CB01": {
+      "url": "https://cb01net.uno",
+      "enabled": 1,
+      "CB_PROXY": 1,
+      "CB_ForwardProxy": 0,
+      "use_mediaflow": 1
+    },
+    "AnimeWorld": {
+      "url": "https://www.animeworld.ac",
+      "enabled": 1,
+      "AW_PROXY": 1,
+      "AW_ForwardProxy": 0,
+      "use_mediaflow": 1
+    },
+    "AnimeSaturn": {
+      "url": "https://animesaturn.cx",
+      "enabled": 1,
+      "AS_PROXY": 1,
+      "AS_ForwardProxy": 0,
+      "use_mediaflow": 1
+    },
+    "AltaDefinizione": {
+      "url": "https://altadefinizionegratis.sbs",
+      "enabled": 1,
+      "AD_PROXY": 1,
+      "AD_ForwardProxy": 0,
+      "use_mediaflow": 1
+    },
+    "Guardaserie": {
+      "url": "https://guardaserietv.sbs",
+      "enabled": 1,
+      "GS_PROXY": 1,
+      "GS_ForwardProxy": 0,
+      "use_mediaflow": 0
+    },
+    "LordChannel": {
+      "url": "https://lordchannel.net",
+      "enabled": 1,
+      "LC_PROXY": 0,
+      "LC_ForwardProxy": 0,
+      "use_mediaflow": 1
+    },
+    "StreamingWatch": {
+      "url": "https://www.streamingwatch.org",
+      "enabled": 1,
+      "SW_PROXY": 0,
+      "SW_ForwardProxy": 0,
+      "use_mediaflow": 0
+    },
+    "StreamingCommunity": {
+      "url": "https://streamingcommunity.spa",
+      "enabled": 0,
+      "SC_PROXY": 0,
+      "SC_ForwardProxy": 0,
+      "use_mediaflow": 0
+    },
+    "Tantifilm": {
+      "url": "https://www.tanti.bond",
+      "enabled": 0,
+      "TF_PROXY": 0,
+      "TF_ForwardProxy": 0,
+      "use_mediaflow": 0
+    }
+  },
+  "General": {
+    "load_env": 0,
+    "HOST": "0.0.0.0",
+    "PORT": 8080,
+    "Name": "MarioStremio",
+    "Icon": "🍕",
+    "Public_Instance": 0,
+    "Remote_Instance": 1,
+    "Global_Proxy": 0
+  },
   "Proxy_Settings": {
     "webshare": "http://pzytldso-rotate:oybm1jw2kflp@p.webshare.io:80/",
     "mediaflow": "https://mfp-40ii.onrender.com/",
